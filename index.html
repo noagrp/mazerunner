@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Maze Runner</title>
+    <style>
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        canvas { display: block; touch-action: none; }
+        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; 
+              justify-content: center; align-items: center; color: white; text-align: center; z-index: 10; background: rgba(0,0,0,0.8); }
+        h1 { font-size: 3em; margin: 0; }
+        button { padding: 15px 30px; font-size: 1.2em; cursor: pointer; background: #333; color: white; border: 1px solid #fff; margin-top: 20px; }
+    </style>
+</head>
+<body>
+<div id="ui">
+    <h1>MAZE RUNNER</h1>
+    <p>Finish all 20 levels soonest. <br>Speed is your score.</p>
+    <p>High Score: <span id="highScore">0</span></p>
+    <button id="startBtn">START JOURNEY</button>
+</div>
+<canvas id="game"></canvas>
+<script>
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    const ui = document.getElementById('ui');
+    const startBtn = document.getElementById('startBtn');
+    const highScoreEl = document.getElementById('highScore');
+    
+    let cellSize = 30, rows, cols, maze, player, goal, start, level = 1, score = 0, startTime, gameRunning = false;
+    let audioCtx, touchStartX, touchStartY;
+
+    highScoreEl.innerText = localStorage.getItem('mazeHighScore') || 0;
+
+    function playTone(freq, type, duration) {
+        if(!audioCtx) return;
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.start(); osc.stop(audioCtx.currentTime + duration);
+    }
+
+    function init() {
+        // Full screen sizing
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        cols = Math.floor(canvas.width / cellSize);
+        rows = Math.floor(canvas.height / cellSize);
+        
+        generateMaze();
+        let paths = [];
+        for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(maze[r][c] === 0) paths.push({r, c});
+        start = paths[Math.floor(Math.random() * paths.length)];
+        goal = paths[Math.floor(Math.random() * paths.length)];
+        player = { r: start.r, c: start.c };
+        startTime = Date.now();
+    }
+
+    function generateMaze() {
+        maze = Array.from({length: rows}, () => Array(cols).fill(1));
+        const stack = [[1, 1]]; maze[1][1] = 0;
+        while(stack.length > 0) {
+            let [r, c] = stack[stack.length - 1];
+            let dirs = [[0,2], [0,-2], [2,0], [-2,0]].sort(() => Math.random() - (0.3 + (level * 0.02)));
+            let found = false;
+            for(let [dr, dc] of dirs) {
+                let nr = r + dr, nc = c + dc;
+                if(nr > 0 && nr < rows-1 && nc > 0 && nc < cols-1 && maze[nr][nc] === 1) {
+                    maze[r + dr/2][c + dc/2] = 0; maze[nr][nc] = 0; stack.push([nr, nc]);
+                    found = true; break;
+                }
+            }
+            if(!found) stack.pop();
+        }
+    }
+
+    function draw() {
+        if(!gameRunning) return;
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // Brick-feel Path
+        for(let r=0; r<rows; r++) {
+            for(let c=0; c<cols; c++) {
+                if(maze[r][c] === 0) {
+                    ctx.fillStyle = '#1a1a1a';
+                    ctx.fillRect(c*cellSize + 2, r*cellSize + 2, cellSize - 4, cellSize - 4);
+                    ctx.strokeStyle = '#333';
+                    ctx.strokeRect(c*cellSize + 2, r*cellSize + 2, cellSize - 4, cellSize - 4);
+                }
+            }
+        }
+
+        drawGlowingGate(start, '#0f0', 0.5);
+        drawGlowingGate(goal, '#ffd700', 0.5);
+
+        let centerX = player.c * cellSize + cellSize / 2;
+        let centerY = player.r * cellSize + cellSize / 2;
+        ctx.fillStyle = '#fff';
+        ctx.beginPath(); ctx.arc(centerX, centerY, cellSize/3, 0, Math.PI*2); ctx.fill();
+
+        ctx.fillStyle = 'white'; ctx.font = "20px sans-serif";
+        ctx.fillText(`Level: ${level}/20  Score: ${Math.floor(score)}`, 20, 30);
+
+        if(player.r === goal.r && player.c === goal.c) {
+            score += (20 - level) * 100 + (10000 / (Date.now() - startTime));
+            level++;
+            if(level > 20) {
+                gameRunning = false;
+                let best = localStorage.getItem('mazeHighScore') || 0;
+                if(score > best) localStorage.setItem('mazeHighScore', Math.floor(score));
+                ui.innerHTML = `<h1>VICTORY!</h1><p>Final Score: ${Math.floor(score)}</p><button onclick="location.reload()">RESTART</button>`;
+                ui.style.display = 'flex';
+            } else init();
+        }
+        requestAnimationFrame(draw);
+    }
+
+    function drawGlowingGate(pt, color, alpha) {
+        ctx.save();
+        ctx.shadowBlur = 15; ctx.shadowColor = color;
+        ctx.fillStyle = color; ctx.globalAlpha = alpha;
+        ctx.fillRect(pt.c*cellSize + 5, pt.r*cellSize + 5, cellSize - 10, cellSize - 10);
+        ctx.restore();
+    }
+
+    // Controls
+    window.addEventListener('keydown', e => movePlayer(e.key.replace('Arrow', '')));
+    window.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; });
+    window.addEventListener('touchend', e => {
+        let dx = e.changedTouches[0].clientX - touchStartX;
+        let dy = e.changedTouches[0].clientY - touchStartY;
+        if(Math.abs(dx) > Math.abs(dy)) movePlayer(dx > 0 ? 'Right' : 'Left');
+        else movePlayer(dy > 0 ? 'Down' : 'Up');
+    });
+
+    function movePlayer(dir) {
+        let {r, c} = player;
+        if(dir === 'Up') r--; else if(dir === 'Down') r++;
+        else if(dir === 'Left') c--; else if(dir === 'Right') c++;
+        if(maze[r] && maze[r][c] === 0) { player.r = r; player.c = c; playTone(440, 'sine', 0.1); }
+    }
+
+    startBtn.addEventListener('click', () => {
+        ui.style.display = 'none';
+        gameRunning = true;
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        setInterval(() => playTone(220, 'triangle', 0.8), 2000);
+        init();
+        draw();
+    });
+
+    window.addEventListener('resize', () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+    });
+</script>
+</body>
+</html>
