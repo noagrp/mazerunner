@@ -16,12 +16,12 @@ html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family
 body{min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:none}
 #app{width:100%;height:100%;position:relative;background:#000}
 canvas{display:block;width:100%;height:100%;touch-action:none}
-#hud{
- position:absolute;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;z-index:4;
- display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none
-}
-.hudBox{background:rgba(0,0,0,.62);border:1px solid #242424;border-radius:10px;padding:7px 9px;font:700 .78rem/1.35 monospace;backdrop-filter:blur(4px)}
-#pauseBtn{pointer-events:auto;background:#151515;color:#fff;border:1px solid #444;border-radius:10px;width:42px;height:42px;font-weight:900;font-size:1rem}
+#hud{position:absolute;inset:0;z-index:4;pointer-events:none}
+.hudChip{position:absolute;background:rgba(0,0,0,.48);border:1px solid #242424;border-radius:9px;padding:6px 8px;font:700 .72rem/1.2 monospace;backdrop-filter:blur(3px)}
+#levelText{top:max(8px,env(safe-area-inset-top));left:8px}
+#timeText{right:8px;bottom:max(8px,env(safe-area-inset-bottom));color:#bbb}
+#bestText{display:none}
+#pauseBtn{position:absolute;top:max(8px,env(safe-area-inset-top));right:8px;pointer-events:auto;background:#151515;color:#fff;border:1px solid #444;border-radius:9px;width:38px;height:38px;font-weight:900;font-size:.95rem}
 #overlay{
  position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.9);
  display:flex;align-items:center;justify-content:center;text-align:center;padding:28px
@@ -46,7 +46,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
  position:absolute;right:12px;bottom:max(14px,env(safe-area-inset-bottom));z-index:4;
  font:700 .68rem/1.35 monospace;color:#777;text-align:right;pointer-events:none
 }
-@media(min-width:760px){#controls{display:none}#miniHint{bottom:14px}}
+@media(min-width:760px){#controls{display:none}#miniHint{bottom:14px}#levelText{top:12px;left:50%;transform:translateX(-50%)}#timeText{right:14px;bottom:14px}#pauseBtn{top:12px;right:14px}}
 @media(max-height:560px){#controls{transform:scale(.82);transform-origin:left bottom}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
 </style>
@@ -55,7 +55,9 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 <div id="app">
  <canvas id="game"></canvas>
  <div id="hud">
-   <div class="hudBox"><div id="levelText">LEVEL 1 / 20</div><div id="timeText">LEVEL 00:00 · TOTAL 00:00</div><div id="bestText">BEST --:--</div></div>
+   <div id="levelText" class="hudChip">LEVEL 1 / 20</div>
+   <div id="timeText" class="hudChip">00:00 · 00:00</div>
+   <div id="bestText"></div>
    <button id="pauseBtn" aria-label="Pause">Ⅱ</button>
  </div>
 
@@ -127,7 +129,7 @@ function resizeCanvas(){
  canvas.width=Math.round(viewW*dpr);canvas.height=Math.round(viewH*dpr);
  canvas.style.width=viewW+'px';canvas.style.height=viewH+'px';
  ctx.setTransform(dpr,0,0,dpr,0,0);
- cellSize=viewW<600?36:viewW<900?34:32;
+ cellSize=viewW<600?36:viewW<760?34:Math.max(24,Math.min(32,Math.floor(Math.min((viewW-80)/Math.max(cols,1),(viewH-80)/Math.max(rows,1)))));
  if(oldW!==viewW||oldH!==viewH)draw();
 }
 function odd(n){n=Math.max(15,Math.floor(n));return n%2===0?n+1:n}
@@ -179,14 +181,21 @@ function farthestFrom(src){
  return far;
 }
 function initLevel(){
- mazeDimensions();generateMaze();
+ mazeDimensions();
+ if(viewW>=760)cellSize=Math.max(24,Math.min(32,Math.floor(Math.min((viewW-80)/cols,(viewH-80)/rows))));
+ generateMaze();
  const paths=pathCells(),seed=paths[Math.floor(Math.random()*paths.length)];
  start=farthestFrom(seed);goal=farthestFrom(start);player={r:start.r,c:start.c};
  levelStart=Date.now();levelPaused=0;transitioning=false;updateHud();draw();
 }
 function camera(){
- const px=player.c*cellSize+cellSize/2,py=player.r*cellSize+cellSize/2;
  const worldW=cols*cellSize,worldH=rows*cellSize;
+ if(viewW>=760){
+  camX=(worldW-viewW)/2;
+  camY=(worldH-viewH)/2;
+  return;
+ }
+ const px=player.c*cellSize+cellSize/2,py=player.r*cellSize+cellSize/2;
  const targetX=px-viewW/2,targetY=py-viewH/2;
  camX=Math.max(0,Math.min(Math.max(0,worldW-viewW),targetX));
  camY=Math.max(0,Math.min(Math.max(0,worldH-viewH),targetY));
@@ -216,7 +225,7 @@ function draw(){
 }
 function updateHud(){
  levelText.textContent=`LEVEL ${level} / ${MAX_LEVEL}`;
- timeText.textContent=`LEVEL ${fmt(currentLevel())} · TOTAL ${fmt(currentTotal())}`;
+ timeText.textContent=`${fmt(currentLevel())} · ${fmt(currentTotal())}`;
 }
 function loop(){
  if(!gameRunning)return;
