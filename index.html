@@ -1,162 +1,308 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Maze Runner</title>
-    <style>
-        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
-        canvas { display: block; touch-action: none; }
-        #ui { position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; flex-direction: column; 
-              justify-content: center; align-items: center; color: white; text-align: center; z-index: 10; background: rgba(0,0,0,0.8); }
-        h1 { font-size: 3em; margin: 0; }
-        button { padding: 15px 30px; font-size: 1.2em; cursor: pointer; background: #333; color: white; border: 1px solid #fff; margin-top: 20px; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Maze Runner">
+<title>Maze Runner</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;background:#000;color:#fff;font-family:Arial,sans-serif;overflow:hidden}
+body{min-height:100dvh;padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);touch-action:none}
+#app{width:100%;height:100%;position:relative;background:#000}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+#hud{
+ position:absolute;top:max(8px,env(safe-area-inset-top));left:8px;right:8px;z-index:4;
+ display:flex;justify-content:space-between;align-items:flex-start;gap:8px;pointer-events:none
+}
+.hudBox{background:rgba(0,0,0,.62);border:1px solid #242424;border-radius:10px;padding:7px 9px;font:700 .78rem/1.35 monospace;backdrop-filter:blur(4px)}
+#pauseBtn{pointer-events:auto;background:#151515;color:#fff;border:1px solid #444;border-radius:10px;width:42px;height:42px;font-weight:900;font-size:1rem}
+#overlay{
+ position:absolute;inset:0;z-index:10;background:rgba(0,0,0,.9);
+ display:flex;align-items:center;justify-content:center;text-align:center;padding:28px
+}
+#overlay.hidden{display:none}
+.panel{max-width:360px}
+.panel h1{font-size:clamp(2rem,10vw,3rem);margin:0 0 8px;letter-spacing:2px}
+.panel p{color:#aaa;line-height:1.45;margin:8px 0}
+.action{margin-top:14px;padding:13px 24px;background:#111;color:#fff;border:2px solid #fff;border-radius:10px;font-weight:900;letter-spacing:1px}
+#controls{
+ position:absolute;left:12px;bottom:max(12px,env(safe-area-inset-bottom));z-index:5;
+ display:grid;grid-template-columns:58px 58px 58px;grid-template-rows:58px 58px;gap:7px
+}
+.ctrl{
+ border:0;border-radius:16px;background:linear-gradient(#2f2f2f,#151515);color:#fff;
+ font-size:1.45rem;font-weight:900;box-shadow:0 5px 0 #070707,inset 0 1px rgba(255,255,255,.14);
+ touch-action:none;user-select:none
+}
+.ctrl:active,.ctrl.pressed{transform:translateY(4px);box-shadow:0 1px 0 #070707,inset 0 2px 5px rgba(0,0,0,.7)}
+#up{grid-column:2;grid-row:1}#left{grid-column:1;grid-row:2}#down{grid-column:2;grid-row:2}#right{grid-column:3;grid-row:2}
+#miniHint{
+ position:absolute;right:12px;bottom:max(14px,env(safe-area-inset-bottom));z-index:4;
+ font:700 .68rem/1.35 monospace;color:#777;text-align:right;pointer-events:none
+}
+@media(min-width:760px){#controls{display:none}#miniHint{bottom:14px}}
+@media(max-height:560px){#controls{transform:scale(.82);transform-origin:left bottom}}
+@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+</style>
 </head>
 <body>
-<div id="ui">
-    <h1>MAZE RUNNER</h1>
-    <p>Finish all 20 levels soonest. <br>Speed is your score.</p>
-    <p>High Score: <span id="highScore">0</span></p>
-    <button id="startBtn">START JOURNEY</button>
+<div id="app">
+ <canvas id="game"></canvas>
+ <div id="hud">
+   <div class="hudBox"><div id="levelText">LEVEL 1 / 20</div><div id="timeText">LEVEL 00:00 · TOTAL 00:00</div><div id="bestText">BEST --:--</div></div>
+   <button id="pauseBtn" aria-label="Pause">Ⅱ</button>
+ </div>
+
+ <div id="controls">
+   <button class="ctrl" id="up">▲</button>
+   <button class="ctrl" id="left">◀</button>
+   <button class="ctrl" id="down">▼</button>
+   <button class="ctrl" id="right">▶</button>
+ </div>
+ <div id="miniHint">Swipe anywhere<br>or use arrows / WASD</div>
+
+ <div id="overlay">
+   <div class="panel">
+     <h1 id="overlayTitle">MAZE RUNNER</h1>
+     <p id="overlayText">Finish all 20 mazes as fast as possible.<br>On phones, the camera follows you so the maze stays large and readable.</p>
+     <p id="overlayBest">Best total time: --:--</p>
+     <button class="action" id="overlayBtn">START JOURNEY</button>
+   </div>
+ </div>
 </div>
-<canvas id="game"></canvas>
+
 <script>
-    const canvas = document.getElementById('game');
-    const ctx = canvas.getContext('2d');
-    const ui = document.getElementById('ui');
-    const startBtn = document.getElementById('startBtn');
-    const highScoreEl = document.getElementById('highScore');
-    
-    let cellSize = 30, rows, cols, maze, player, goal, start, level = 1, score = 0, startTime, gameRunning = false;
-    let audioCtx, touchStartX, touchStartY;
+const canvas=document.getElementById('game'),ctx=canvas.getContext('2d');
+const overlay=document.getElementById('overlay'),overlayTitle=document.getElementById('overlayTitle'),
+overlayText=document.getElementById('overlayText'),overlayBest=document.getElementById('overlayBest'),
+overlayBtn=document.getElementById('overlayBtn'),pauseBtn=document.getElementById('pauseBtn');
+const levelText=document.getElementById('levelText'),timeText=document.getElementById('timeText'),bestText=document.getElementById('bestText');
 
-    highScoreEl.innerText = localStorage.getItem('mazeHighScore') || 0;
+const MAX_LEVEL=20;
+let viewW=1,viewH=1,dpr=1,cellSize=34,rows=25,cols=25,maze=[],player,start,goal;
+let level=1,gameRunning=false,paused=false,transitioning=false;
+let totalStart=0,levelStart=0,pauseStarted=0,totalPaused=0,levelPaused=0;
+let animId=0,audioCtx=null,ambientTimer=null;
+let touchStartX=0,touchStartY=0,touchLastX=0,touchLastY=0;
+let camX=0,camY=0;
+const bestKey='mazeBestTimeMs';
 
-    function playTone(freq, type, duration) {
-        if(!audioCtx) return;
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-        gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-        gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
-        osc.connect(gain); gain.connect(audioCtx.destination);
-        osc.start(); osc.stop(audioCtx.currentTime + duration);
-    }
+function fmt(ms){
+ const s=Math.max(0,Math.floor(ms/1000)),m=Math.floor(s/60),r=s%60;
+ return `${m.toString().padStart(2,'0')}:${r.toString().padStart(2,'0')}`;
+}
+function currentTotal(){return totalStart?Date.now()-totalStart-totalPaused:0}
+function currentLevel(){return levelStart?Date.now()-levelStart-levelPaused:0}
+function bestMs(){return Number(localStorage.getItem(bestKey)||0)}
+function refreshBest(){
+ const b=bestMs(),txt=b?fmt(b):'--:--';
+ bestText.textContent=`BEST ${txt}`;overlayBest.textContent=`Best total time: ${txt}`;
+}
+function ensureAudio(){
+ if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+ if(audioCtx.state==='suspended')audioCtx.resume();
+}
+function tone(freq,type='sine',dur=.06,vol=.045){
+ if(!audioCtx)return;
+ try{
+  const o=audioCtx.createOscillator(),g=audioCtx.createGain(),now=audioCtx.currentTime;
+  o.type=type;o.frequency.setValueAtTime(freq,now);g.gain.setValueAtTime(vol,now);
+  g.gain.exponentialRampToValueAtTime(.0001,now+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(now+dur);
+ }catch(e){}
+}
+function startAmbient(){
+ clearInterval(ambientTimer);
+ ambientTimer=setInterval(()=>{if(gameRunning&&!paused&&!transitioning)tone(110,'triangle',.28,.018)},2600);
+}
+function resizeCanvas(){
+ const oldW=viewW,oldH=viewH;
+ viewW=window.innerWidth;viewH=window.innerHeight;
+ dpr=Math.min(window.devicePixelRatio||1,2);
+ canvas.width=Math.round(viewW*dpr);canvas.height=Math.round(viewH*dpr);
+ canvas.style.width=viewW+'px';canvas.style.height=viewH+'px';
+ ctx.setTransform(dpr,0,0,dpr,0,0);
+ cellSize=viewW<600?36:viewW<900?34:32;
+ if(oldW!==viewW||oldH!==viewH)draw();
+}
+function odd(n){n=Math.max(15,Math.floor(n));return n%2===0?n+1:n}
+function mazeDimensions(){
+ const base=19+Math.floor((level-1)/3)*2;
+ rows=odd(Math.min(35,base+4));
+ cols=odd(Math.min(39,base+(level>10?4:0)));
+}
+function shuffledDirs(){
+ const a=[[0,2],[0,-2],[2,0],[-2,0]];
+ for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}
+ return a;
+}
+function generateMaze(){
+ maze=Array.from({length:rows},()=>Array(cols).fill(1));
+ const stack=[[1,1]];maze[1][1]=0;
+ while(stack.length){
+  const [r,c]=stack[stack.length-1];let moved=false;
+  for(const [dr,dc] of shuffledDirs()){
+   const nr=r+dr,nc=c+dc;
+   if(nr>0&&nr<rows-1&&nc>0&&nc<cols-1&&maze[nr][nc]===1){
+    maze[r+dr/2][c+dc/2]=0;maze[nr][nc]=0;stack.push([nr,nc]);moved=true;break;
+   }
+  }
+  if(!moved)stack.pop();
+ }
+ const loops=Math.floor(level/4);
+ for(let i=0;i<loops;i++){
+  const r=1+Math.floor(Math.random()*(rows-2)),c=1+Math.floor(Math.random()*(cols-2));
+  if(maze[r][c]===1){
+   const horiz=(maze[r][c-1]===0&&maze[r][c+1]===0);
+   const vert=(maze[r-1]?.[c]===0&&maze[r+1]?.[c]===0);
+   if(horiz||vert)maze[r][c]=0;
+  }
+ }
+}
+function pathCells(){
+ const out=[];for(let r=0;r<rows;r++)for(let c=0;c<cols;c++)if(maze[r][c]===0)out.push({r,c});return out;
+}
+function farthestFrom(src){
+ const q=[src],dist=Array.from({length:rows},()=>Array(cols).fill(-1));dist[src.r][src.c]=0;let far=src;
+ for(let qi=0;qi<q.length;qi++){
+  const p=q[qi];if(dist[p.r][p.c]>dist[far.r][far.c])far=p;
+  for(const [dr,dc] of [[1,0],[-1,0],[0,1],[0,-1]]){
+   const r=p.r+dr,c=p.c+dc;
+   if(maze[r]?.[c]===0&&dist[r][c]===-1){dist[r][c]=dist[p.r][p.c]+1;q.push({r,c})}
+  }
+ }
+ return far;
+}
+function initLevel(){
+ mazeDimensions();generateMaze();
+ const paths=pathCells(),seed=paths[Math.floor(Math.random()*paths.length)];
+ start=farthestFrom(seed);goal=farthestFrom(start);player={r:start.r,c:start.c};
+ levelStart=Date.now();levelPaused=0;transitioning=false;updateHud();draw();
+}
+function camera(){
+ const px=player.c*cellSize+cellSize/2,py=player.r*cellSize+cellSize/2;
+ const worldW=cols*cellSize,worldH=rows*cellSize;
+ const targetX=px-viewW/2,targetY=py-viewH/2;
+ camX=Math.max(0,Math.min(Math.max(0,worldW-viewW),targetX));
+ camY=Math.max(0,Math.min(Math.max(0,worldH-viewH),targetY));
+}
+function drawGate(pt,color){
+ const x=pt.c*cellSize-camX,y=pt.r*cellSize-camY;
+ ctx.save();ctx.shadowBlur=18;ctx.shadowColor=color;ctx.fillStyle=color;ctx.globalAlpha=.65;
+ ctx.fillRect(x+cellSize*.2,y+cellSize*.2,cellSize*.6,cellSize*.6);ctx.restore();
+}
+function draw(){
+ if(!maze.length)return;
+ camera();ctx.clearRect(0,0,viewW,viewH);ctx.fillStyle='#000';ctx.fillRect(0,0,viewW,viewH);
+ const c0=Math.max(0,Math.floor(camX/cellSize)-1),c1=Math.min(cols-1,Math.ceil((camX+viewW)/cellSize)+1);
+ const r0=Math.max(0,Math.floor(camY/cellSize)-1),r1=Math.min(rows-1,Math.ceil((camY+viewH)/cellSize)+1);
+ for(let r=r0;r<=r1;r++)for(let c=c0;c<=c1;c++){
+  const x=c*cellSize-camX,y=r*cellSize-camY;
+  if(maze[r][c]===0){
+   ctx.fillStyle='#1a1a1a';ctx.fillRect(x+2,y+2,cellSize-4,cellSize-4);
+   ctx.strokeStyle='#333';ctx.strokeRect(x+2,y+2,cellSize-4,cellSize-4);
+  }else{
+   ctx.fillStyle='#050505';ctx.fillRect(x,y,cellSize,cellSize);
+  }
+ }
+ drawGate(start,'#00ff5a');drawGate(goal,'#ffd700');
+ const px=player.c*cellSize+cellSize/2-camX,py=player.r*cellSize+cellSize/2-camY;
+ ctx.save();ctx.shadowBlur=14;ctx.shadowColor='#fff';ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(px,py,cellSize*.34,0,Math.PI*2);ctx.fill();ctx.restore();
+}
+function updateHud(){
+ levelText.textContent=`LEVEL ${level} / ${MAX_LEVEL}`;
+ timeText.textContent=`LEVEL ${fmt(currentLevel())} · TOTAL ${fmt(currentTotal())}`;
+}
+function loop(){
+ if(!gameRunning)return;
+ if(!paused&&!transitioning){updateHud();draw()}
+ animId=requestAnimationFrame(loop);
+}
+function move(dir){
+ if(!gameRunning||paused||transitioning||!player)return;
+ let {r,c}=player;
+ if(dir==='Up')r--;else if(dir==='Down')r++;else if(dir==='Left')c--;else if(dir==='Right')c++;
+ if(maze[r]?.[c]===0){
+  player.r=r;player.c=c;tone(440,'sine',.045,.03);draw();
+  if(player.r===goal.r&&player.c===goal.c)completeLevel();
+ }else tone(100,'square',.035,.02);
+}
+function completeLevel(){
+ transitioning=true;tone(760,'sine',.11,.06);
+ const finishedLevel=level;
+ level++;
+ if(level>MAX_LEVEL){finishRun();return}
+ overlayTitle.textContent=`LEVEL ${finishedLevel} CLEAR`;
+ overlayText.innerHTML=`Level time <strong>${fmt(currentLevel())}</strong><br>Next: ${level} / ${MAX_LEVEL}`;
+ overlayBtn.textContent='CONTINUE';overlay.classList.remove('hidden');
+}
+function continueLevel(){overlay.classList.add('hidden');initLevel()}
+function finishRun(){
+ gameRunning=false;cancelAnimationFrame(animId);clearInterval(ambientTimer);
+ const total=currentTotal(),best=bestMs();
+ if(!best||total<best)localStorage.setItem(bestKey,String(total));
+ refreshBest();overlayTitle.textContent='VICTORY!';
+ overlayText.innerHTML=`20 mazes complete.<br>Total time <strong>${fmt(total)}</strong>`;
+ overlayBtn.textContent='RUN AGAIN';overlay.classList.remove('hidden');
+}
+function startRun(){
+ ensureAudio();clearInterval(ambientTimer);level=1;totalPaused=0;levelPaused=0;paused=false;
+ totalStart=Date.now();gameRunning=true;overlay.classList.add('hidden');pauseBtn.textContent='Ⅱ';
+ initLevel();startAmbient();cancelAnimationFrame(animId);loop();
+}
+function setPause(v){
+ if(!gameRunning||transitioning)return;
+ if(v&&!paused){paused=true;pauseStarted=Date.now();pauseBtn.textContent='▶';
+  overlayTitle.textContent='PAUSED';overlayText.textContent='Journey paused.';overlayBtn.textContent='RESUME';overlay.classList.remove('hidden');
+ }else if(!v&&paused){
+  const delta=Date.now()-pauseStarted;totalPaused+=delta;levelPaused+=delta;paused=false;pauseBtn.textContent='Ⅱ';overlay.classList.add('hidden');
+ }
+}
+overlayBtn.onclick=()=>{
+ if(!gameRunning)startRun();
+ else if(paused)setPause(false);
+ else if(transitioning)continueLevel();
+};
+pauseBtn.onclick=()=>setPause(!paused);
 
-    function init() {
-        // Full screen sizing
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-        cols = Math.floor(canvas.width / cellSize);
-        rows = Math.floor(canvas.height / cellSize);
-        
-        generateMaze();
-        let paths = [];
-        for(let r=0; r<rows; r++) for(let c=0; c<cols; c++) if(maze[r][c] === 0) paths.push({r, c});
-        start = paths[Math.floor(Math.random() * paths.length)];
-        goal = paths[Math.floor(Math.random() * paths.length)];
-        player = { r: start.r, c: start.c };
-        startTime = Date.now();
-    }
+window.addEventListener('keydown',e=>{
+ const map={ArrowUp:'Up',KeyW:'Up',ArrowDown:'Down',KeyS:'Down',ArrowLeft:'Left',KeyA:'Left',ArrowRight:'Right',KeyD:'Right'};
+ if(map[e.code]){e.preventDefault();if(!e.repeat)move(map[e.code])}
+ if(e.code==='Escape'||e.code==='KeyP'){e.preventDefault();setPause(!paused)}
+});
+function bindCtrl(id,dir){
+ const b=document.getElementById(id);
+ b.addEventListener('pointerdown',e=>{e.preventDefault();b.classList.add('pressed');b.setPointerCapture?.(e.pointerId);move(dir)});
+ const up=()=>b.classList.remove('pressed');
+ b.addEventListener('pointerup',up);b.addEventListener('pointercancel',up);b.addEventListener('lostpointercapture',up);
+}
+bindCtrl('up','Up');bindCtrl('down','Down');bindCtrl('left','Left');bindCtrl('right','Right');
 
-    function generateMaze() {
-        maze = Array.from({length: rows}, () => Array(cols).fill(1));
-        const stack = [[1, 1]]; maze[1][1] = 0;
-        while(stack.length > 0) {
-            let [r, c] = stack[stack.length - 1];
-            let dirs = [[0,2], [0,-2], [2,0], [-2,0]].sort(() => Math.random() - (0.3 + (level * 0.02)));
-            let found = false;
-            for(let [dr, dc] of dirs) {
-                let nr = r + dr, nc = c + dc;
-                if(nr > 0 && nr < rows-1 && nc > 0 && nc < cols-1 && maze[nr][nc] === 1) {
-                    maze[r + dr/2][c + dc/2] = 0; maze[nr][nc] = 0; stack.push([nr, nc]);
-                    found = true; break;
-                }
-            }
-            if(!found) stack.pop();
-        }
-    }
+canvas.addEventListener('pointerdown',e=>{touchStartX=touchLastX=e.clientX;touchStartY=touchLastY=e.clientY});
+canvas.addEventListener('pointermove',e=>{
+ if(!gameRunning||paused||transitioning||e.buttons===0)return;
+ const dx=e.clientX-touchLastX,dy=e.clientY-touchLastY;
+ if(Math.max(Math.abs(dx),Math.abs(dy))>=24){
+  if(Math.abs(dx)>Math.abs(dy))move(dx>0?'Right':'Left');else move(dy>0?'Down':'Up');
+  touchLastX=e.clientX;touchLastY=e.clientY;
+ }
+});
+canvas.addEventListener('pointerup',e=>{
+ const dx=e.clientX-touchStartX,dy=e.clientY-touchStartY;
+ if(Math.max(Math.abs(dx),Math.abs(dy))>=18&&Math.max(Math.abs(e.clientX-touchLastX),Math.abs(e.clientY-touchLastY))<24){
+  if(Math.abs(dx)>Math.abs(dy))move(dx>0?'Right':'Left');else move(dy>0?'Down':'Up');
+ }
+});
+window.addEventListener('resize',resizeCanvas);
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&gameRunning&&!paused&&!transitioning)setPause(true)});
 
-    function draw() {
-        if(!gameRunning) return;
-        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, canvas.width, canvas.height);
-        
-        // Brick-feel Path
-        for(let r=0; r<rows; r++) {
-            for(let c=0; c<cols; c++) {
-                if(maze[r][c] === 0) {
-                    ctx.fillStyle = '#1a1a1a';
-                    ctx.fillRect(c*cellSize + 2, r*cellSize + 2, cellSize - 4, cellSize - 4);
-                    ctx.strokeStyle = '#333';
-                    ctx.strokeRect(c*cellSize + 2, r*cellSize + 2, cellSize - 4, cellSize - 4);
-                }
-            }
-        }
-
-        drawGlowingGate(start, '#0f0', 0.5);
-        drawGlowingGate(goal, '#ffd700', 0.5);
-
-        let centerX = player.c * cellSize + cellSize / 2;
-        let centerY = player.r * cellSize + cellSize / 2;
-        ctx.fillStyle = '#fff';
-        ctx.beginPath(); ctx.arc(centerX, centerY, cellSize/3, 0, Math.PI*2); ctx.fill();
-
-        ctx.fillStyle = 'white'; ctx.font = "20px sans-serif";
-        ctx.fillText(`Level: ${level}/20  Score: ${Math.floor(score)}`, 20, 30);
-
-        if(player.r === goal.r && player.c === goal.c) {
-            score += (20 - level) * 100 + (10000 / (Date.now() - startTime));
-            level++;
-            if(level > 20) {
-                gameRunning = false;
-                let best = localStorage.getItem('mazeHighScore') || 0;
-                if(score > best) localStorage.setItem('mazeHighScore', Math.floor(score));
-                ui.innerHTML = `<h1>VICTORY!</h1><p>Final Score: ${Math.floor(score)}</p><button onclick="location.reload()">RESTART</button>`;
-                ui.style.display = 'flex';
-            } else init();
-        }
-        requestAnimationFrame(draw);
-    }
-
-    function drawGlowingGate(pt, color, alpha) {
-        ctx.save();
-        ctx.shadowBlur = 15; ctx.shadowColor = color;
-        ctx.fillStyle = color; ctx.globalAlpha = alpha;
-        ctx.fillRect(pt.c*cellSize + 5, pt.r*cellSize + 5, cellSize - 10, cellSize - 10);
-        ctx.restore();
-    }
-
-    // Controls
-    window.addEventListener('keydown', e => movePlayer(e.key.replace('Arrow', '')));
-    window.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; touchStartY = e.touches[0].clientY; });
-    window.addEventListener('touchend', e => {
-        let dx = e.changedTouches[0].clientX - touchStartX;
-        let dy = e.changedTouches[0].clientY - touchStartY;
-        if(Math.abs(dx) > Math.abs(dy)) movePlayer(dx > 0 ? 'Right' : 'Left');
-        else movePlayer(dy > 0 ? 'Down' : 'Up');
-    });
-
-    function movePlayer(dir) {
-        let {r, c} = player;
-        if(dir === 'Up') r--; else if(dir === 'Down') r++;
-        else if(dir === 'Left') c--; else if(dir === 'Right') c++;
-        if(maze[r] && maze[r][c] === 0) { player.r = r; player.c = c; playTone(440, 'sine', 0.1); }
-    }
-
-    startBtn.addEventListener('click', () => {
-        ui.style.display = 'none';
-        gameRunning = true;
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        setInterval(() => playTone(220, 'triangle', 0.8), 2000);
-        init();
-        draw();
-    });
-
-    window.addEventListener('resize', () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-    });
+resizeCanvas();refreshBest();draw();
+if('serviceWorker'in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js'));
 </script>
 </body>
 </html>
